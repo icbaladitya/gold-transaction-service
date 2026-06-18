@@ -1,0 +1,29 @@
+-- Basic Response Data
+{
+  "result_code" : 1,
+  "message" : "successfully",
+  "data" : {
+    -- isinya model atau domain
+  }
+}
+
+-- Basic Response List Data
+{
+  "result_code" : 1,
+  "message" : "successfully",
+  "items" : [
+    -- isi nya list domain
+  ]
+}
+
+-- Basic Response Jika ada validasi atau gagal terkait bisnis
+{
+  "result_code" : 0,
+  "message" : "failed",
+}
+
+-- Basic Response Jika ada error teknis
+{
+  "result_code" : -1,
+  "message" : "error",
+}
