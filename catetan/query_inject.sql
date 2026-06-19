@@ -3,6 +3,13 @@ INSERT INTO "user" (id, nama, email, created_by) VALUES
 (replace(gen_random_uuid()::text, '-', ''), 'Bambang Pamungkas', 'bambang@email.com', 'system'),
 (replace(gen_random_uuid()::text, '-', ''), 'Siti Badriah', 'siti@email.com', 'system');
 
+-- USER BALANCE
+INSERT INTO public.user_balance(
+	id, user_id, idr_balance, gold_balance, version, created_by)
+	VALUES 
+	(replace(gen_random_uuid()::text, '-', ''), 'a1b2c3d4e5f67a8b9c0d1e2f3a4b5c6d', 30000000, 1, 1, 'system'),
+	(replace(gen_random_uuid()::text, '-', ''), 'e02b2c3d479f47ac10b58cc4372a5670', 60000000, 2, 1, 'system');
+
 -- MST GOLD
 INSERT INTO mst_gold (id, code, gold_gram, active, created_by) VALUES
 (replace(gen_random_uuid()::text, '-', ''), 'G0001', 0.0100, true, 'system'),

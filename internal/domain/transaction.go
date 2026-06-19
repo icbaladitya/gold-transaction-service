@@ -1,6 +1,8 @@
 package domain
 
 import (
+	"context"
+	"database/sql"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -8,7 +10,7 @@ import (
 
 type GoldTransactionInput struct {
 	UserID string                `json:"user_id" binding:"required"`
-	Type   string                `json:"type" binding:"required,oneof:BUY SELL"`
+	Type   string                `json:"type,omitempty"`
 	Items  []GoldTransactionItem `json:"items" binding:"required,dive"`
 }
 
@@ -17,6 +19,7 @@ type GoldTransactionItem struct {
 	GoldGram decimal.Decimal `json:"gold_gram" binding:"required"`
 	Version  int             `json:"version" binding:"required,gte=1"`
 	Qty      int             `json:"qty" binding:"required,gte=1"`
+	// PricePerGram decimal.Decimal `json:"price_per_gram" binding:"required"`
 }
 
 type TransactionHeaderInput struct {
@@ -44,14 +47,42 @@ type TransactionDetailInput struct {
 	Qty          int             `json:"qty" db:"qty"`
 }
 
+type UserBalanceData struct {
+	ID          string          `json:"id" db:"id"`
+	IDRBalance  decimal.Decimal `json:"idr_balance" db:"idr_balance"`
+	GoldBalance decimal.Decimal `json:"gold_balance" db:"gold_balance"`
+	Version     int             `json:"version" db:"version"`
+}
+
+type UserBalanceInput struct {
+	ID          string          `json:"id" db:"id"`
+	UserID      string          `json:"user_id" db:"user_id"`
+	IDRBalance  decimal.Decimal `json:"idr_balance" db:"idr_balance"`
+	GoldBalance decimal.Decimal `json:"gold_balance" db:"gold_balance"`
+	Version     int             `json:"version" db:"version"`
+	CreatedBy   string          `json:"created_by" db:"created_by"`
+}
+
+type GoldPrice struct {
+	ID           string          `json:"id" db:"id"`
+	GoldID       string          `json:"mst_gold_id" db:"mst_gold_id"`
+	BuyPrice     decimal.Decimal `json:"buy_price" db:"buy_price"`
+	SellPrice    decimal.Decimal `json:"sell_price" db:"sell_price"`
+	PricePerGram decimal.Decimal `json:"price_per_gram" db:"price_per_gram"`
+	Version      int             `json:"version" db:"version"`
+}
+
 type GoldTransactionRepoInterface interface {
-	InsertTransactionHeader(input *TransactionHeaderInput) error
-	InsertTransactionDetail(input []TransactionDetailInput) error
-	// GoldTransactionSell()
-	// GoldTransactionHistory()
+	InsertTransactionHeader(ctx context.Context, tx *sql.Tx, input *TransactionHeaderInput) error
+	InsertTransactionDetail(ctx context.Context, tx *sql.Tx, input []TransactionDetailInput) error
+	UpdateStockGold(ctx context.Context, tx *sql.Tx, goldId *string, stock *int, tipe *string) error
+	ValidationBalance(ctx context.Context, tx *sql.Tx, userId *string) (*UserBalanceData, error)
+	ValidationStock(ctx context.Context, tx *sql.Tx, goldId *string) error
+	InsertBalanceUser(ctx context.Context, tx *sql.Tx, input *UserBalanceInput) error
+	GetGoldPrice(ctx context.Context, tx *sql.Tx, goldPriceId *string) (*GoldPrice, error)
 }
 
 type GoldTransactionUseCaseInterface interface {
-	GoldTransactions(input *GoldTransactionInput) BasicResponse[any]
-	GoldTransactionHistory(userId *string) BasicResponse[any]
+	GoldTransactions(ctx context.Context, input *GoldTransactionInput) BasicResponse[any]
+	GoldTransactionHistory(ctx context.Context, userId *string) BasicResponse[any]
 }

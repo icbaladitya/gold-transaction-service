@@ -21,9 +21,13 @@ func main() {
 	goldPrice := usecase.GoldPriceUsecaseFunc(goldPriceRepo)
 	goldPriceHandler := delivery.GoldPriceHandlerFunc(goldPrice)
 
+	goldTransactionRepo := repository.GoldTransactionRepoFunc(db)
+	goldTransactionUsecase := usecase.GoldTransactionUsecaseFunc(db, goldTransactionRepo)
+	goldTransactionHandler := delivery.GoldTransactionHandlerFunc(goldTransactionUsecase)
+
 	r := gin.Default()
 	delivery.SetupGoldPriceRouter(r, goldPriceHandler)
-	delivery.SetupTransactionRouter(r, goldPriceHandler)
+	delivery.SetupTransactionRouter(r, goldTransactionHandler)
 
 	r.Run(os.Getenv("APP_PORT"))
 }

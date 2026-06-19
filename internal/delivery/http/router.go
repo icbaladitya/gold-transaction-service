@@ -10,11 +10,11 @@ func SetupGoldPriceRouter(r *gin.Engine, h *GoldPriceHandler) {
 	}
 }
 
-func SetupTransactionRouter(r *gin.Engine, h *GoldPriceHandler) {
+func SetupTransactionRouter(r *gin.Engine, h *GoldTransactionHandler) {
 	api := r.Group("/transaction")
 	{
-		api.GET("/buy", h.GetGoldPrices)
-		api.POST("/sell", h.GenerateGoldPrice)
-		api.POST("/history", h.GenerateGoldPrice)
+		api.POST("/buy", h.CreateTransaction)
+		api.POST("/sell", h.CreateTransaction)
+		// api.POST("/history", h.GenerateGoldPrice)
 	}
 }

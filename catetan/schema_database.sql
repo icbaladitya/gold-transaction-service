@@ -105,7 +105,7 @@ CREATE TABLE IF NOT EXISTS public.gold_trx_dtl
     id character varying(32) COLLATE pg_catalog."default" NOT NULL,
     gold_trx_hdr_id character varying(32) COLLATE pg_catalog."default" NOT NULL,
     gold_prices_id character varying(32) COLLATE pg_catalog."default" NOT NULL,
-    gold_gram numeric(12,4) NOT NULL,
+    gold_gram numeric(12,2) NOT NULL,
     buy_price numeric(15,2) NOT NULL,
     sell_price numeric(15,2) NOT NULL,
     created timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
