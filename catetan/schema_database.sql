@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS public.gold_prices
     version integer DEFAULT 1,
     created timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     created_by character varying(32) COLLATE pg_catalog."default",
+    price_per_gram numeric(15,2) DEFAULT 0.00,
     CONSTRAINT gold_prices_pkey PRIMARY KEY (id),
     CONSTRAINT fk_gold_prices_mst FOREIGN KEY (mst_gold_id)
         REFERENCES public.mst_gold (id) MATCH SIMPLE
@@ -79,12 +80,13 @@ CREATE TABLE IF NOT EXISTS public.gold_trx_hdr
     id character varying(32) COLLATE pg_catalog."default" NOT NULL,
     user_id character varying(32) COLLATE pg_catalog."default" NOT NULL,
     type character varying(20) COLLATE pg_catalog."default" NOT NULL,
-    gold_gram numeric(12,2) DEFAULT 0.00,
-    gold_idr numeric(15,2) DEFAULT 0.00,
+    total_gold_gram numeric(12,2) DEFAULT 0.00,
+    total_gold_idr numeric(15,2) DEFAULT 0.00,
     status character varying(30) COLLATE pg_catalog."default" DEFAULT 'PENDING'::character varying,
     description text COLLATE pg_catalog."default",
     created timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     created_by character varying(50) COLLATE pg_catalog."default",
+    total_qty numeric NOT NULL DEFAULT 0,
     CONSTRAINT gold_trx_hdr_pkey PRIMARY KEY (id),
     CONSTRAINT fk_gold_trx_hdr_user FOREIGN KEY (user_id)
         REFERENCES public.mst_user (id) MATCH SIMPLE
@@ -108,6 +110,7 @@ CREATE TABLE IF NOT EXISTS public.gold_trx_dtl
     sell_price numeric(15,2) NOT NULL,
     created timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     created_by character varying(50) COLLATE pg_catalog."default",
+    qty numeric NOT NULL DEFAULT 0,
     CONSTRAINT gold_trx_dtl_pkey PRIMARY KEY (id),
     CONSTRAINT fk_gold_trx_dtl_hdr FOREIGN KEY (gold_trx_hdr_id)
         REFERENCES public.gold_trx_hdr (id) MATCH SIMPLE

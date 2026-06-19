@@ -23,6 +23,7 @@ func main() {
 
 	r := gin.Default()
 	delivery.SetupGoldPriceRouter(r, goldPriceHandler)
+	delivery.SetupTransactionRouter(r, goldPriceHandler)
 
 	r.Run(os.Getenv("APP_PORT"))
 }

@@ -8,10 +8,10 @@ import (
 )
 
 type GoldPriceHandler struct {
-	useCase domain.GoldPriceUsecaseFunc
+	useCase domain.GoldPriceUseCaseInterface
 }
 
-func GoldPriceHandlerFunc(useCase domain.GoldPriceUsecaseFunc) *GoldPriceHandler {
+func GoldPriceHandlerFunc(useCase domain.GoldPriceUseCaseInterface) *GoldPriceHandler {
 	return &GoldPriceHandler{useCase: useCase}
 }
 

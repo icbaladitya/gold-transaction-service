@@ -7,10 +7,10 @@ import (
 )
 
 type GoldPriceUsecase struct {
-	repo domain.GoldPriceRepoFunc
+	repo domain.GoldPriceRepoInterface
 }
 
-func GoldPriceUsecaseFunc(r domain.GoldPriceRepoFunc) domain.GoldPriceUsecaseFunc {
+func GoldPriceUsecaseFunc(r domain.GoldPriceRepoInterface) domain.GoldPriceUseCaseInterface {
 	return &GoldPriceUsecase{repo: r}
 }
 
@@ -44,17 +44,14 @@ func (g *GoldPriceUsecase) GenerateGoldPrice(input *domain.GenerateGoldPriceInpu
 	for _, item := range items {
 		gramVal, _ := decimal.NewFromString(item.Name)
 
-		// totalPrice := gramVal.Mul(input.PricePerGram)
 		totalBuyPrice := gramVal.Mul(input.BuyPricePerGram)
 		totalSellPrice := gramVal.Mul(input.SellPricePerGram)
-
-		// fmt.Printf("Generated -> %s gr | Price: Rp %s | Buy: Rp %s | Sell: Rp %s\n",
-		// 	item.Name, totalPrice.StringFixed(2), totalBuyPrice.StringFixed(2), totalSellPrice.StringFixed(2))
 
 		generateGoldPrices = append(generateGoldPrices, domain.GenerateGoldPriceData{
 			MstGoldID:        item.ID,
 			BuyPrice:         totalBuyPrice,
 			SellPrice:        totalSellPrice,
+			PricePerGram:     input.PricePerGram,
 			BuyPricePerGram:  input.BuyPricePerGram,
 			SellPricePerGram: input.SellPricePerGram,
 			CreatedBy:        "system",

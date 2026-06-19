@@ -11,7 +11,7 @@ type GoldPriceRepo struct {
 	db *sql.DB
 }
 
-func GoldPriceRepoFunc(db *sql.DB) domain.GoldPriceRepoFunc {
+func GoldPriceRepoFunc(db *sql.DB) domain.GoldPriceRepoInterface {
 	return &GoldPriceRepo{
 		db: db,
 	}
@@ -19,7 +19,7 @@ func GoldPriceRepoFunc(db *sql.DB) domain.GoldPriceRepoFunc {
 
 func (g *GoldPriceRepo) GetGoldPrices() ([]domain.GoldPriceData, error) {
 	// panic("unimplemented")
-	query := `SELECT gp.id, mg.gold_gram, mg.stock, gp.buy_price, gp.sell_price, gp.version
+	query := `SELECT gp.id, mg.gold_gram, mg.stock, gp.buy_price, gp.sell_price, gp.price_per_gram, gp.version
 		FROM gold_prices gp
 		JOIN mst_gold mg ON mg.id = gp.mst_gold_id
 		WHERE gp.version = (SELECT MAX(version) FROM gold_prices)
@@ -42,6 +42,7 @@ func (g *GoldPriceRepo) GetGoldPrices() ([]domain.GoldPriceData, error) {
 			&p.Stock,
 			&p.BuyPrice,
 			&p.SellPrice,
+			&p.PricePerGram,
 			&p.Version,
 		)
 		if err != nil {
@@ -86,31 +87,32 @@ func (g *GoldPriceRepo) BulkInsertPrices(input []domain.GenerateGoldPriceData) (
       SELECT COALESCE(MAX(version), 0) + 1 AS new_ver FROM gold_prices
     )
     INSERT INTO gold_prices (
-      id, mst_gold_id, buy_price, sell_price, buy_price_per_gram, sell_price_per_gram, version, created_by
+      id, mst_gold_id, buy_price, sell_price, price_per_gram, buy_price_per_gram, sell_price_per_gram, version, created_by
     )
     VALUES 
   `
 
 	valueStrings := make([]string, 0, len(input))
-	valueArgs := make([]interface{}, 0, len(input)*6)
+	valueArgs := make([]interface{}, 0, len(input)*7)
 
 	paramCounter := 1
 
 	for _, item := range input {
 		rowQuery := fmt.Sprintf(
-			"(replace(gen_random_uuid()::text, '-', ''), $%d, $%d, $%d, $%d, $%d, (SELECT new_ver FROM next_version), $%d)",
-			paramCounter, paramCounter+1, paramCounter+2, paramCounter+3, paramCounter+4, paramCounter+5,
+			"(replace(gen_random_uuid()::text, '-', ''), $%d, $%d, $%d, $%d, $%d, $%d, (SELECT new_ver FROM next_version), $%d)",
+			paramCounter, paramCounter+1, paramCounter+2, paramCounter+3, paramCounter+4, paramCounter+5, paramCounter+6,
 		)
 		valueStrings = append(valueStrings, rowQuery)
 
 		valueArgs = append(valueArgs, item.MstGoldID)
 		valueArgs = append(valueArgs, item.BuyPrice)
 		valueArgs = append(valueArgs, item.SellPrice)
+		valueArgs = append(valueArgs, item.PricePerGram)
 		valueArgs = append(valueArgs, item.BuyPricePerGram)
 		valueArgs = append(valueArgs, item.SellPricePerGram)
 		valueArgs = append(valueArgs, item.CreatedBy)
 
-		paramCounter += 6
+		paramCounter += 7
 	}
 
 	completeQuery := baseQuery + strings.Join(valueStrings, ",\n")
