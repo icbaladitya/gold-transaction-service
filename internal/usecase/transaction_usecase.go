@@ -42,9 +42,9 @@ func (u *GoldTransactionUsecase) GoldTransactions(ctx context.Context, input *do
 		return domain.FailResponse[any]("Data saldo tidak di temukan : " + err.Error())
 	}
 
-	var totalGoldGram decimal.Decimal
-	var totalGoldIDR decimal.Decimal
-	var totalQty int = 0
+	var totalGoldGramHdr decimal.Decimal
+	var totalGoldIDRHdr decimal.Decimal
+	var totalQtyHdr int = 0
 
 	headerTrxID := strings.ReplaceAll(uuid.New().String(), "-", "")
 	var detailInputs []domain.TransactionDetailInput
@@ -63,21 +63,20 @@ func (u *GoldTransactionUsecase) GoldTransactions(ctx context.Context, input *do
 			return domain.FailResponse[any]("Stok emas untuk ID " + item.ID + " tidak tersedia")
 		}
 
-		qtyDecimal := decimal.NewFromInt(int64(item.Qty))
-		pricePerGram := goldPrice.PricePerGram
-
-		itemTotalIDR := pricePerGram.Mul(item.GoldGram).Mul(qtyDecimal)
-		itemTotalGram := item.GoldGram.Mul(qtyDecimal)
-
-		totalGoldGram = totalGoldGram.Add(itemTotalGram)
-		totalGoldIDR = totalGoldIDR.Add(itemTotalIDR)
-		totalQty += item.Qty
-
 		err = u.repoFunc.UpdateStockGold(ctx, tx, &goldPrice.GoldID, &item.Qty, &input.Type)
 		if err != nil {
 			tx.Rollback()
 			return domain.ErrorResponse[any]("Gagal memperbarui stok emas: " + err.Error())
 		}
+
+		qtyDecimal := decimal.NewFromInt(int64(item.Qty))
+
+		totalGram := goldPrice.GoldGram.Mul(qtyDecimal)
+		totalPrice := goldPrice.BuyPrice.Mul(qtyDecimal)
+
+		totalGoldGramHdr = totalGoldGramHdr.Add(totalGram)
+		totalGoldIDRHdr = totalGoldIDRHdr.Add(totalPrice)
+		totalQtyHdr += item.Qty
 
 		detailInputs = append(detailInputs, domain.TransactionDetailInput{
 			ID:           strings.ReplaceAll(uuid.New().String(), "-", ""),
@@ -86,6 +85,8 @@ func (u *GoldTransactionUsecase) GoldTransactions(ctx context.Context, input *do
 			GoldGram:     item.GoldGram,
 			BuyPrice:     goldPrice.BuyPrice,
 			SellPrice:    goldPrice.SellPrice,
+			TotalPrice:   totalPrice,
+			TotalGram:    totalGram,
 			Created:      time.Now(),
 			CreatedBy:    "system",
 			Qty:          item.Qty,
@@ -97,19 +98,19 @@ func (u *GoldTransactionUsecase) GoldTransactions(ctx context.Context, input *do
 
 	switch input.Type {
 	case "BUY":
-		if userBalance.IDRBalance.LessThan(totalGoldIDR) {
+		if userBalance.IDRBalance.LessThan(totalGoldIDRHdr) {
 			tx.Rollback()
 			return domain.FailResponse[any]("Saldo uang Anda tidak mencukupi")
 		}
-		newIDRBalance = userBalance.IDRBalance.Sub(totalGoldIDR)
-		newGoldBalance = userBalance.GoldBalance.Add(totalGoldGram)
+		newIDRBalance = userBalance.IDRBalance.Sub(totalGoldIDRHdr)
+		newGoldBalance = userBalance.GoldBalance.Add(totalGoldGramHdr)
 	case "SELL":
-		if userBalance.GoldBalance.LessThan(totalGoldGram) {
+		if userBalance.GoldBalance.LessThan(totalGoldGramHdr) {
 			tx.Rollback()
 			return domain.FailResponse[any]("Saldo emas Anda tidak mencukupi untuk dijual")
 		}
-		newIDRBalance = userBalance.IDRBalance.Add(totalGoldIDR)
-		newGoldBalance = userBalance.GoldBalance.Sub(totalGoldGram)
+		newIDRBalance = userBalance.IDRBalance.Add(totalGoldIDRHdr)
+		newGoldBalance = userBalance.GoldBalance.Sub(totalGoldGramHdr)
 	default:
 		tx.Rollback()
 		return domain.FailResponse[any]("Tipe transaksi tidak valid")
@@ -134,13 +135,13 @@ func (u *GoldTransactionUsecase) GoldTransactions(ctx context.Context, input *do
 		ID:            headerTrxID,
 		UserID:        input.UserID,
 		Type:          input.Type,
-		TotalGoldGram: totalGoldGram,
-		TotalGoldIDR:  totalGoldIDR,
+		TotalGoldGram: totalGoldGramHdr,
+		TotalGoldIDR:  totalGoldIDRHdr,
 		Status:        "SUCCESS",
 		Description:   &desc,
 		Created:       time.Now(),
 		CreatedBy:     "system",
-		TotalQty:      totalQty,
+		TotalQty:      totalQtyHdr,
 	}
 
 	err = u.repoFunc.InsertTransactionHeader(ctx, tx, headerInput)
@@ -160,15 +161,69 @@ func (u *GoldTransactionUsecase) GoldTransactions(ctx context.Context, input *do
 	}
 
 	summaryData := map[string]interface{}{
-		"trx_id":          headerTrxID,
+		"gold_trx_hdr_id": headerTrxID,
 		"status":          "SUCCESS",
-		"current_idr":     newIDRBalance.StringFixed(2),
-		"current_gold_gr": newGoldBalance.StringFixed(4),
+		"idr_balance":     newIDRBalance.StringFixed(2),
+		"gold_balance":    newGoldBalance.StringFixed(2),
 	}
 
 	return domain.SuccessDataResponse[any](summaryData, "Transaksi dan pembaruan saldo berhasil!")
 }
 
-func (u *GoldTransactionUsecase) GoldTransactionHistory(ctx context.Context, userId *string) domain.BasicResponse[any] {
-	return domain.SuccessDataResponse[any](nil, "Belum diimplementasikan")
+func (u *GoldTransactionUsecase) GoldTransactionHistory(ctx context.Context, userId *string) domain.BasicResponse[domain.TransactionHistoryHeader] {
+	tx, err := u.db.BeginTx(ctx, nil)
+	if err != nil {
+		return domain.ErrorResponse[domain.TransactionHistoryHeader]("Gagal memulai transaksi database: " + err.Error())
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	dataHeader, err := u.repoFunc.GetTransactionHeader(ctx, tx, userId)
+	if err != nil {
+		tx.Rollback()
+		return domain.ErrorResponse[domain.TransactionHistoryHeader]("Transaksi header : " + err.Error())
+	}
+
+	if len(dataHeader) == 0 {
+		tx.Rollback()
+		return domain.FailResponse[domain.TransactionHistoryHeader]("Data transaksi tidak ada")
+	}
+	fmt.Println("masuk sinii ", dataHeader)
+
+	var dataResponse []domain.TransactionHistoryHeader
+
+	for _, item := range dataHeader {
+		fmt.Println("masuk sinii looping ", item.GoldTrxHdrID)
+		dataDetail, err := u.repoFunc.GetTransactionDetail(ctx, tx, &item.GoldTrxHdrID)
+		if err != nil {
+			tx.Rollback()
+			return domain.ErrorResponse[domain.TransactionHistoryHeader]("Transaksi detail : " + err.Error())
+		}
+
+		fmt.Println("masuk sinii dataDetail ", dataDetail)
+
+		history := domain.TransactionHistoryHeader{
+			GoldTrxHdrID:  item.GoldTrxHdrID,
+			Type:          item.Type,
+			TotalGoldGram: item.TotalGoldGram,
+			TotalGoldIDR:  item.TotalGoldIDR,
+			TotalQty:      item.TotalQty,
+			Status:        item.Status,
+			Items:         dataDetail,
+		}
+
+		dataResponse = append(dataResponse, history)
+	}
+
+	fmt.Println("masuk sinii dataResponse ", dataResponse)
+
+	if err := tx.Commit(); err != nil {
+		return domain.ErrorResponse[domain.TransactionHistoryHeader]("Gagal melakukan commit database: " + err.Error())
+	}
+
+	return domain.SuccessListResponse[domain.TransactionHistoryHeader](dataResponse, "Successfully")
 }

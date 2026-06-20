@@ -45,18 +45,19 @@ func (t *TransactionRepo) InsertTransactionDetail(ctx context.Context, tx *sql.T
 
 	baseQuery := `
     INSERT INTO gold_trx_dtl (
-      id, gold_trx_hdr_id, gold_prices_id, gold_gram, buy_price, sell_price, created_by, qty
+      id, gold_trx_hdr_id, gold_prices_id, gold_gram, buy_price, sell_price, created_by, qty, total_price, total_gram
     ) VALUES 
   `
 
 	valueStrings := make([]string, 0, len(input))
-	valueArgs := make([]interface{}, 0, len(input)*8)
+	valueArgs := make([]interface{}, 0, len(input)*10)
 	paramCounter := 1
 
 	for _, item := range input {
 		rowQuery := fmt.Sprintf(
-			"($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
-			paramCounter, paramCounter+1, paramCounter+2, paramCounter+3, paramCounter+4, paramCounter+5, paramCounter+6, paramCounter+7,
+			"($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
+			paramCounter, paramCounter+1, paramCounter+2, paramCounter+3, paramCounter+4, paramCounter+5, paramCounter+6,
+			paramCounter+7, paramCounter+8, paramCounter+9,
 		)
 		valueStrings = append(valueStrings, rowQuery)
 
@@ -68,8 +69,10 @@ func (t *TransactionRepo) InsertTransactionDetail(ctx context.Context, tx *sql.T
 		valueArgs = append(valueArgs, item.SellPrice)
 		valueArgs = append(valueArgs, item.CreatedBy)
 		valueArgs = append(valueArgs, item.Qty)
+		valueArgs = append(valueArgs, item.TotalPrice)
+		valueArgs = append(valueArgs, item.TotalGram)
 
-		paramCounter += 8
+		paramCounter += 10
 	}
 
 	completeQuery := baseQuery + strings.Join(valueStrings, ",\n")
@@ -143,15 +146,100 @@ func (t *TransactionRepo) ValidationBalance(ctx context.Context, tx *sql.Tx, use
 }
 
 func (t *TransactionRepo) GetGoldPrice(ctx context.Context, tx *sql.Tx, goldPriceId *string) (*domain.GoldPrice, error) {
-	query := `SELECT id, mst_gold_id, buy_price, sell_price, price_per_gram, version FROM gold_prices WHERE id = $1`
+	query := `
+		SELECT gp.id, gp.mst_gold_id, gp.buy_price, gp.sell_price, gp.price_per_gram, gp.version, mg.gold_gram 
+		FROM gold_prices gp
+		JOIN mst_gold mg ON mg.id = gp.mst_gold_id
+		WHERE gp.id = $1`
 
 	var goldPrice domain.GoldPrice
 	err := tx.QueryRowContext(ctx, query, goldPriceId).Scan(
-		&goldPrice.ID, &goldPrice.GoldID, &goldPrice.BuyPrice, &goldPrice.SellPrice, &goldPrice.PricePerGram, &goldPrice.Version,
+		&goldPrice.ID, &goldPrice.GoldID, &goldPrice.BuyPrice, &goldPrice.SellPrice, &goldPrice.PricePerGram, &goldPrice.Version, &goldPrice.GoldGram,
 	)
 
 	if err != nil {
 		return nil, err
 	}
 	return &goldPrice, nil
+}
+
+func (t *TransactionRepo) GetTransactionHeader(ctx context.Context, tx *sql.Tx, userId *string) ([]domain.TransactionHistoryHeader, error) {
+	query := `
+		SELECT id, type, total_gold_gram, total_gold_idr, total_qty, status
+		FROM gold_trx_hdr
+		WHERE user_id = $1
+		ORDER BY created DESC`
+
+	rows, err := tx.QueryContext(ctx, query, userId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var listHeaderTransaction []domain.TransactionHistoryHeader
+
+	for rows.Next() {
+		var header domain.TransactionHistoryHeader
+
+		err := rows.Scan(
+			&header.GoldTrxHdrID,
+			&header.Type,
+			&header.TotalGoldGram,
+			&header.TotalGoldIDR,
+			&header.TotalQty,
+			&header.Status,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		listHeaderTransaction = append(listHeaderTransaction, header)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return listHeaderTransaction, nil
+}
+
+func (t *TransactionRepo) GetTransactionDetail(ctx context.Context, tx *sql.Tx, goldHeaderId *string) ([]domain.TransactionHistoryDetail, error) {
+	query := `
+		SELECT id, gold_gram, qty, buy_price, sell_price, total_price, total_gram
+		FROM gold_trx_dtl
+		WHERE gold_trx_hdr_id = $1
+		ORDER BY created DESC`
+
+	rows, err := tx.QueryContext(ctx, query, goldHeaderId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var listDetailTransaction []domain.TransactionHistoryDetail
+
+	for rows.Next() {
+		var detail domain.TransactionHistoryDetail
+
+		err := rows.Scan(
+			&detail.GoldTrxDetailID,
+			&detail.GoldGram,
+			&detail.Qty,
+			&detail.BuyPrice,
+			&detail.SellPrice,
+			&detail.TotalPrice,
+			&detail.TotalGram,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		listDetailTransaction = append(listDetailTransaction, detail)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return listDetailTransaction, nil
 }

@@ -15,6 +15,6 @@ func SetupTransactionRouter(r *gin.Engine, h *GoldTransactionHandler) {
 	{
 		api.POST("/buy", h.CreateTransaction)
 		api.POST("/sell", h.CreateTransaction)
-		// api.POST("/history", h.GenerateGoldPrice)
+		api.GET("/history", h.GetTransactionHistory)
 	}
 }

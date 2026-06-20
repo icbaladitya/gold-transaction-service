@@ -46,3 +46,27 @@ func (h *GoldTransactionHandler) CreateTransaction(c *gin.Context) {
 
 	c.JSON(http.StatusOK, result)
 }
+
+func (h *GoldTransactionHandler) GetTransactionHistory(c *gin.Context) {
+	userID := c.Query("user-id")
+
+	if userID == "" {
+		c.JSON(http.StatusBadRequest, domain.FailResponse[any]("Parameter user-id wajib diisi"))
+		return
+	}
+
+	ctx := c.Request.Context()
+	response := h.usecase.GoldTransactionHistory(ctx, &userID)
+
+	if response.ResultCode == -1 {
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	if response.ResultCode == 0 {
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	c.JSON(http.StatusOK, response)
+}

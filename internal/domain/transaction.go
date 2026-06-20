@@ -42,6 +42,8 @@ type TransactionDetailInput struct {
 	GoldGram     decimal.Decimal `json:"gold_gram" db:"gold_gram"`
 	BuyPrice     decimal.Decimal `json:"buy_price" db:"buy_price"`
 	SellPrice    decimal.Decimal `json:"sell_price" db:"sell_price"`
+	TotalPrice   decimal.Decimal `json:"total_price" db:"total_price"`
+	TotalGram    decimal.Decimal `json:"total_gram" db:"total_gram"`
 	Created      time.Time       `json:"created" db:"created"`
 	CreatedBy    string          `json:"created_by" db:"created_by"`
 	Qty          int             `json:"qty" db:"qty"`
@@ -70,6 +72,27 @@ type GoldPrice struct {
 	SellPrice    decimal.Decimal `json:"sell_price" db:"sell_price"`
 	PricePerGram decimal.Decimal `json:"price_per_gram" db:"price_per_gram"`
 	Version      int             `json:"version" db:"version"`
+	GoldGram     decimal.Decimal `json:"gold_gram" db:"gold_gram"`
+}
+
+type TransactionHistoryHeader struct {
+	GoldTrxHdrID  string                     `json:"gold_trx_hdr_id" db:"id"`
+	Type          string                     `json:"type" db:"type"`
+	TotalGoldGram decimal.Decimal            `json:"total_gold_gram" db:"total_gold_gram"`
+	TotalGoldIDR  decimal.Decimal            `json:"total_gold_idr" db:"total_gold_idr"`
+	TotalQty      int                        `json:"total_qty" db:"total_qty"`
+	Status        string                     `json:"status" db:"status"`
+	Items         []TransactionHistoryDetail `json:"items"`
+}
+
+type TransactionHistoryDetail struct {
+	GoldTrxDetailID string          `json:"gold_trx_dtl_id" db:"id"`
+	GoldGram        decimal.Decimal `json:"gold_gram" db:"gold_gram"`
+	Qty             int             `json:"qty" db:"qty"`
+	BuyPrice        decimal.Decimal `json:"buy_price" db:"buy_price"`
+	SellPrice       decimal.Decimal `json:"sell_price" db:"sell_price"`
+	TotalPrice      decimal.Decimal `json:"total_price" db:"total_price"`
+	TotalGram       decimal.Decimal `json:"total_gram" db:"total_gram"`
 }
 
 type GoldTransactionRepoInterface interface {
@@ -80,9 +103,11 @@ type GoldTransactionRepoInterface interface {
 	ValidationStock(ctx context.Context, tx *sql.Tx, goldId *string) error
 	InsertBalanceUser(ctx context.Context, tx *sql.Tx, input *UserBalanceInput) error
 	GetGoldPrice(ctx context.Context, tx *sql.Tx, goldPriceId *string) (*GoldPrice, error)
+	GetTransactionHeader(ctx context.Context, tx *sql.Tx, userId *string) ([]TransactionHistoryHeader, error)
+	GetTransactionDetail(ctx context.Context, tx *sql.Tx, goldHeaderId *string) ([]TransactionHistoryDetail, error)
 }
 
 type GoldTransactionUseCaseInterface interface {
 	GoldTransactions(ctx context.Context, input *GoldTransactionInput) BasicResponse[any]
-	GoldTransactionHistory(ctx context.Context, userId *string) BasicResponse[any]
+	GoldTransactionHistory(ctx context.Context, userId *string) BasicResponse[TransactionHistoryHeader]
 }

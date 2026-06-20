@@ -111,6 +111,8 @@ CREATE TABLE IF NOT EXISTS public.gold_trx_dtl
     created timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     created_by character varying(50) COLLATE pg_catalog."default",
     qty numeric NOT NULL DEFAULT 0,
+    total_price numeric(15,2),
+    total_gram numeric(12,2),
     CONSTRAINT gold_trx_dtl_pkey PRIMARY KEY (id),
     CONSTRAINT fk_gold_trx_dtl_hdr FOREIGN KEY (gold_trx_hdr_id)
         REFERENCES public.gold_trx_hdr (id) MATCH SIMPLE
