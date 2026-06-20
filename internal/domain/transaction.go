@@ -100,7 +100,7 @@ type GoldTransactionRepoInterface interface {
 	InsertTransactionDetail(ctx context.Context, tx *sql.Tx, input []TransactionDetailInput) error
 	UpdateStockGold(ctx context.Context, tx *sql.Tx, goldId *string, stock *int, tipe *string) error
 	ValidationBalance(ctx context.Context, tx *sql.Tx, userId *string) (*UserBalanceData, error)
-	ValidationStock(ctx context.Context, tx *sql.Tx, goldId *string) error
+	ValidationStock(ctx context.Context, tx *sql.Tx, goldId *string) (*int, error)
 	InsertBalanceUser(ctx context.Context, tx *sql.Tx, input *UserBalanceInput) error
 	GetGoldPrice(ctx context.Context, tx *sql.Tx, goldPriceId *string) (*GoldPrice, error)
 	GetTransactionHeader(ctx context.Context, tx *sql.Tx, userId *string) ([]TransactionHistoryHeader, error)

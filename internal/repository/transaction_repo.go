@@ -116,11 +116,12 @@ func (t *TransactionRepo) InsertBalanceUser(ctx context.Context, tx *sql.Tx, inp
 	return err
 }
 
-func (t *TransactionRepo) ValidationStock(ctx context.Context, tx *sql.Tx, goldId *string) error {
+func (t *TransactionRepo) ValidationStock(ctx context.Context, tx *sql.Tx, goldId *string) (*int, error) {
 	var stock int
 	query := `SELECT stock FROM mst_gold WHERE id = $1`
 	err := tx.QueryRowContext(ctx, query, goldId).Scan(&stock)
-	return err
+
+	return &stock, err
 }
 
 func (t *TransactionRepo) ValidationBalance(ctx context.Context, tx *sql.Tx, userId *string) (*domain.UserBalanceData, error) {

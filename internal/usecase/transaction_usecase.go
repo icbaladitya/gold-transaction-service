@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"gold-transaction-service/internal/domain"
+	"strconv"
 	"strings"
 	"time"
 
@@ -57,10 +58,21 @@ func (u *GoldTransactionUsecase) GoldTransactions(ctx context.Context, input *do
 			return domain.FailResponse[any]("Harga emas untuk ID " + goldPrice.ID + " tidak tersedia")
 		}
 
-		valStock := u.repoFunc.ValidationStock(ctx, tx, &goldPrice.GoldID)
-		if valStock != nil {
+		valStock, err := u.repoFunc.ValidationStock(ctx, tx, &goldPrice.GoldID)
+		if err != nil {
 			tx.Rollback()
-			return domain.FailResponse[any]("Stok emas untuk ID " + item.ID + " tidak tersedia")
+			return domain.FailResponse[any]("Gagal cek stok " + item.ID + " : " + err.Error())
+		}
+
+		if input.Type == "BUY" {
+			if *valStock < item.Qty {
+				tx.Rollback()
+				if *valStock == 0 {
+					return domain.FailResponse[any]("Stock " + item.GoldGram.String() + " tidak tersedia")
+				} else {
+					return domain.FailResponse[any]("Stock " + item.GoldGram.String() + " hanya tersedia " + strconv.Itoa(*valStock))
+				}
+			}
 		}
 
 		err = u.repoFunc.UpdateStockGold(ctx, tx, &goldPrice.GoldID, &item.Qty, &input.Type)
